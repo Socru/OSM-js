@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa con OpenStreetMap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #container {
+            height: calc(100% - 50px); /* Altura total menos 50px para dejar espacio para el encabezado */
+            padding-top: 10px; /* Margen superior */
+        }
+
+        #location {
+            width: 100%;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+
+        #map {
+            width: 100%;
+            height: calc(100% - 70px); /* Altura total menos 70px para dejar espacio para el encabezado */
+        }
+
+        #saveButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <button id="saveButton" onclick="guardarMapa()">Guardar Mapa</button>
+    <div id="location">Te encuentras en: <span id="currentLocation"></span></div>
+    <div id="container">
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var savedMapCenter;
+        var savedMapBounds;
+
+        var map;
+
+        // Intentar cargar el mapa guardado al cargar la página
+        window.onload = function() {
+            var storedCenter = localStorage.getItem('mapCenter');
+            var storedBounds = localStorage.getItem('mapBounds');
+            if (storedCenter && storedBounds) {
+                savedMapCenter = JSON.parse(storedCenter);
+                savedMapBounds = JSON.parse(storedBounds);
+                cargarMapaGuardado();
+            } else {
+                obtenerUbicacionActual();
+            }
+        };
+
+        function obtenerUbicacionActual() {
+            // Hacer una solicitud para obtener la ubicación basada en la IP
+            fetch('/location')
+                .then(response => response.json())
+                .then(data => {
+                    var latitud = data.latitude;
+                    var longitud = data.longitude;
+
+                    // Inicializar el mapa
+                    map = L.map('map').setView([latitud, longitud], 13); // Latitud y longitud de tu ubicación inicial, y el nivel de zoom deseado
+
+                    // Agregar azulejos (tiles) de OpenStreetMap al mapa
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+
+                    // Marcador de tu ubicación actual
+                    var marker = L.marker([latitud, longitud]).addTo(map);
+                    marker.bindPopup("<b>Tu ubicación</b>").openPopup();
+
+                    // Actualizar el texto de la ubicación actual
+                    document.getElementById('currentLocation').innerText = `${latitud}, ${longitud}`;
+                })
+                .catch(error => {
+                    console.error('Error al obtener la ubicación:', error);
+                });
+        }
+
+        function guardarMapa() {
+            savedMapCenter = map.getCenter();
+            savedMapBounds = map.getBounds();
+            localStorage.setItem('mapCenter', JSON.stringify(savedMapCenter));
+            localStorage.setItem('mapBounds', JSON.stringify(savedMapBounds));
+            alert('Mapa guardado');
+        }
+
+        function cargarMapaGuardado() {
+            map = L.map('map').fitBounds(savedMapBounds); // Establecer los límites guardados
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            map.setView(savedMapCenter);
+        }
+    </script>
+</body>
+</html>
